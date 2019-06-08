@@ -22,7 +22,7 @@ function varargout = dragTry(varargin)
 
 % Edit the above text to modify the response to help dragTry
 
-% Last Modified by GUIDE v2.5 07-Jun-2019 17:43:26
+% Last Modified by GUIDE v2.5 08-Jun-2019 13:08:56
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -145,38 +145,77 @@ global imZeros
 global polePos
 global zeroPos
 global conjugate
-polePos = [];
-zeroPos = [];
-for i = 1:numel(imPoles)
-    if isvalid(imPoles(i))
-       polePos = [polePos; getPosition(imPoles(i))];
+global check
+global fs
+s = get(handles.fsample,'String');
+if isempty(s)
+    msgbox('Type Fs','ERROR')
+else
+    if check
+        polePos = [];
+        zeroPos = [];
+        for i = 1:numel(imPoles)
+            if isvalid(imPoles(i))
+               polePos = [polePos; getPosition(imPoles(i))];
+            end
+        end
+
+        for i = 1:numel(imZeros)
+            if isvalid(imZeros(i))
+               zeroPos = [zeroPos; getPosition(imZeros(i))]
+            end
+        end
+        if size(polePos)==0
+            p = 0;
+        else
+            p = complex(polePos(:,1),polePos(:,2));
+        end
+        if size(zeroPos)==0
+            z = 0;
+        else
+            z = complex(zeroPos(:,1),zeroPos(:,2))
+        end
+
+        if conjugate == 1
+            z = [z; conj(z)];
+            p = [p; conj(p)];
+        end
+        [b,a] = zp2tf(z, p,1);
+        [h,f] = freqz(b,a,3142,fs);
+        axes(handles.readyFn);
+        plot(f,20*log10(abs(h)))
+        axes(handles.loop);
+        p = 0:0.001:pi;
+        x = cos(p);
+        y = sin(p);
+        point = [x;y]';
+        poleDist = [];
+        zeroDist = [];
+        pd = [];
+        zd = [];
+        gain = [];
+        for i = 1:3142
+            for j = 1:size(polePos,1)
+                pd = [pd norm(point(i,:)- polePos(j,:))];
+            end
+
+            for j = 1:size(zeroPos,1)
+                zd = [zd norm(point(i,:)- zeroPos(j,:))];
+            end
+            zeroDist = prod(zd);   
+            poleDist = prod(pd);
+            gain = [gain zeroDist/poleDist];
+            zd = [];
+            pd = [];ithu
+        end
+        gain(1,1:10)
+        f1 = linspace(0,fs/2,3142);
+        plot(f1,20*log10(gain));
+        
+    else
+        msgbox('Type a number','ERROR')
     end
 end
-
-for i = 1:numel(imZeros)
-    if isvalid(imZeros(i))
-       zeroPos = [zeroPos; getPosition(imZeros(i))]
-    end
-end
-if size(polePos)==0
-    p = 0;
-else
-    p = complex(polePos(:,1),polePos(:,2));
-end
-if size(zeroPos)==0
-    z = 0;
-else
-    z = complex(zeroPos(:,1),zeroPos(:,2))
-end
-
-if conjugate == 1
-    z = [z; conj(z)];
-    p = [p; conj(p)];
-end
-[b,a] = zp2tf(z, p,1)
-[h,w] = freqz(b,a);
-axes(handles.readyFn);
-plot(w/pi,20*log10(abs(h)))
 
 
 % --- Executes during object creation, after setting all properties.
@@ -264,3 +303,34 @@ end
 conjPole = [];
 conjZero = [];
 % Hint: get(hObject,'Value') returns toggle state of noConj
+
+
+
+function fsample_Callback(hObject, eventdata, handles)
+% hObject    handle to fsample (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+global fs
+global check
+fs = str2double(get(hObject,'String'))
+if ~isnan(fs)
+    check = true;
+else
+    check = false;
+    msgbox('Type a number','ERROR')
+end
+% Hints: get(hObject,'String') returns contents of fsample as text
+%        str2double(get(hObject,'String')) returns contents of fsample as a double
+
+
+% --- Executes during object creation, after setting all properties.
+function fsample_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to fsample (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
